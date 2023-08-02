@@ -1,0 +1,70 @@
+import pandas as pd
+import numpy as np
+import re
+
+# Function to check if string is ASCII
+def is_ascii(s):
+    return all(ord(c) < 128 for c in s)
+
+def is_subsequence(string, sub_string):
+    sub_string = sub_string.replace('-', ' ')
+    string = string.replace('-', ' ')
+    sub_string_tokens = sub_string.lower().split()
+    string_tokens = string.lower().split()
+    return all(token in string_tokens for token in sub_string_tokens)
+
+def subsequence_length(s1, s2):
+    """
+    Compute the length of the subsequence common to the two input sequences.
+    It's a dynamic programming algorithm.
+    """
+    m = len(s1)
+    n = len(s2)
+    counter = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(m + 1):
+        for j in range(n + 1):
+            if i == 0 or j == 0:
+                counter[i][j] = 0
+            elif s1[i - 1] == s2[j - 1]:
+                counter[i][j] = counter[i - 1][j - 1] + 1
+            else:
+                counter[i][j] = max(counter[i - 1][j], counter[i][j - 1])
+    return counter[m][n]
+
+# Read CSV files
+original_data = pd.read_csv(r'C:\Users\ycohe\Desktop\Work\Empire Media\event file\first_100.csv', header=None, encoding='latin-1')
+additional_data = pd.read_csv(r'C:\Users\ycohe\Desktop\Work\Empire Media\event file\to_add.csv', header=None, encoding='latin-1')
+
+# Filter out non-ASCII strings
+ascii_filtered_original_data = original_data[original_data[0].apply(is_ascii)]
+ascii_filtered_additional_data = additional_data[additional_data[0].apply(is_ascii)]
+
+# Add a new column for the largest subsequence in the original data
+ascii_filtered_original_data['largest_subsequence'] = np.nan
+
+# For each row in original_data
+for orig_index, orig_row in ascii_filtered_original_data.iterrows():
+    largest_subsequence = ''
+    largest_length = 0
+
+    # For each row in additional_data
+    for add_index, add_row in ascii_filtered_additional_data.iterrows():
+        if is_subsequence(str(add_row[0]), str(orig_row[0])):
+            subseq_length = subsequence_length(str(add_row[0]).lower(), str(orig_row[0]).lower())
+            if subseq_length > largest_length:
+                largest_subsequence = add_row[0]
+                largest_length = subseq_length
+
+        # Set the largest subsequence found in the new column
+        if largest_subsequence:
+            print(f"Updating row {orig_index} with largest subsequence: {largest_subsequence}")
+            ascii_filtered_original_data.at[orig_index, 'largest_subsequence'] = largest_subsequence
+
+    # Export the resulting DataFrame to CSV
+    ascii_filtered_original_data.to_csv(
+        r'C:\Users\ycohe\Desktop\Work\Empire Media\event file\merge_chat_output.csv', index=False, header=False)
+
+
+ascii_filtered_original_data.to_csv(
+      r'C:\Users\ycohe\Desktop\Work\Empire Media\event file\merge_chat_output_final.csv', index=False, header=False)
+
