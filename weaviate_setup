@@ -1,0 +1,86 @@
+import os
+import weaviate
+import json
+import requests
+import pandas as pd
+import math
+import numpy as np
+
+os.environ["OPENAI_APIKEY"] = "Replace with OPENAI_APIKEY"
+
+def validate_data(data):
+    for key, value in list(data.items()):  # Using list() to prevent 'dictionary changed size during iteration' error
+        if isinstance(value, (int, float)):
+            if value is None or math.isinf(value) or math.isnan(value):
+                del data[key]  # delete the key-value pair completely
+    return data
+
+
+def tsv_to_json(file_path):
+    events = []
+    with open(file_path, 'r') as file:
+        for line in file:
+            name, description = line.strip().split('\t')
+            event_data = {
+                'eventName': name,
+                'description': description
+            }
+            events.append(event_data)
+
+    return json.dumps(events, indent=4)
+
+
+
+client = weaviate.Client(
+    url="https://cluster1-kedu3lyz.weaviate.network",
+    auth_client_secret=weaviate.AuthApiKey(api_key="Replace here"),
+    additional_headers={
+        "OPENAI_APIKEY": "Replace with OPENAI_APIKEY"
+    }
+)
+
+client.schema.delete_class("Event")
+
+class_obj = {
+    "class": "Event",
+    "vectorizer": "text2vec-openai",
+    "moduleConfig": {
+        "text2vec-openai": {
+            "model": "ada",
+            "modelVersion": "002",
+            "type": "text"
+        }
+    },
+    "properties": [
+        {
+            "name": "eventName",
+            "dataType": ["string"]
+        },
+        {
+            "name": "description",
+            "dataType": ["string"]
+        }
+    ]
+}
+
+client.schema.create_class(class_obj)
+
+# Load data
+data = pd.read_csv(r'C:\Users\ycohe\Desktop\first_100.csv', encoding='cp1252', header=None,
+                   names=['eventName', 'description'])
+
+with client.batch(batch_size=100) as batch:
+    # Batch import all Events
+    for i, d in data.iterrows():
+        print(f"Importing event: {i + 1}")
+
+        properties = {
+            "eventName": d["eventName"],
+            "description": d["description"],
+        }
+
+        # Validate and clean data before adding to batch
+        properties = validate_data(properties)
+
+        batch.add_data_object(properties, "Event")
+        print(f"Event {i + 1} added to batch successfully!")
