@@ -13,23 +13,18 @@ def is_subsequence(string, sub_string):
     string_tokens = string.lower().split()
     return all(token in string_tokens for token in sub_string_tokens)
 
-def subsequence_length(s1, s2):
+def are_all_chars_in_s1_in_s2(s1, s2):
     """
-    Compute the length of the subsequence common to the two input sequences.
-    It's a dynamic programming algorithm.
+    Check if all characters of s1 appear in s2, regardless of order or positioning.
     """
-    m = len(s1)
-    n = len(s2)
-    counter = [[0] * (n + 1) for _ in range(m + 1)]
-    for i in range(m + 1):
-        for j in range(n + 1):
-            if i == 0 or j == 0:
-                counter[i][j] = 0
-            elif s1[i - 1] == s2[j - 1]:
-                counter[i][j] = counter[i - 1][j - 1] + 1
-            else:
-                counter[i][j] = max(counter[i - 1][j], counter[i][j - 1])
-    return counter[m][n]
+    counter_s1 = {char: s1.count(char) for char in set(s1)}
+    counter_s2 = {char: s2.count(char) for char in set(s2)}
+
+    for char, count in counter_s1.items():
+        if char not in counter_s2 or count > counter_s2[char]:
+            return False
+    return True
+
 
 # Read CSV files
 original_data = pd.read_csv(r'C:\Users\ycohe\Desktop\Work\Empire Media\event file\first_100.csv', header=None, encoding='latin-1')
@@ -44,27 +39,22 @@ ascii_filtered_original_data['largest_subsequence'] = np.nan
 
 # For each row in original_data
 for orig_index, orig_row in ascii_filtered_original_data.iterrows():
-    largest_subsequence = ''
-    largest_length = 0
+    matching_string = ''
 
     # For each row in additional_data
     for add_index, add_row in ascii_filtered_additional_data.iterrows():
-        if is_subsequence(str(add_row[0]), str(orig_row[0])):
-            subseq_length = subsequence_length(str(add_row[0]).lower(), str(orig_row[0]).lower())
-            if subseq_length > largest_length:
-                largest_subsequence = add_row[0]
-                largest_length = subseq_length
+        if are_all_chars_in_s1_in_s2(str(orig_row[0]).lower(), str(add_row[0]).lower()):
+            matching_string = add_row[0]
 
-        # Set the largest subsequence found in the new column
-        if largest_subsequence:
-            print(f"Updating row {orig_index} with largest subsequence: {largest_subsequence}")
-            ascii_filtered_original_data.at[orig_index, 'largest_subsequence'] = largest_subsequence
+        # Set the matching string found in the new column
+        if matching_string:
+            print(f"Updating row {orig_index} with matching string: {matching_string}")
+            ascii_filtered_original_data.at[orig_index, 'matching_string'] = matching_string
 
-    # Export the resulting DataFrame to CSV
-    ascii_filtered_original_data.to_csv(
-        r'C:\Users\ycohe\Desktop\Work\Empire Media\event file\merge_chat_output.csv', index=False, header=False)
-
-
+# Export the resulting DataFrame to CSV
 ascii_filtered_original_data.to_csv(
-      r'C:\Users\ycohe\Desktop\Work\Empire Media\event file\merge_chat_output_final.csv', index=False, header=False)
+    r'C:\Users\ycohe\Desktop\Work\Empire Media\event file\merge_chat_output_final.csv', index=False, header=False)
+
+
+
 
