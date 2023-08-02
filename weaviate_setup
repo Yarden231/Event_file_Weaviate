@@ -8,6 +8,37 @@ import numpy as np
 
 os.environ["OPENAI_APIKEY"] = "Replace with OPENAI_APIKEY"
 
+
+def configure_batch(client: Client, batch_size: int, batch_target_rate: int):
+    """
+    Configure the weaviate client's batch so it creates objects at `batch_target_rate`.
+
+    Parameters
+    ----------
+    client : Client
+        The Weaviate client instance.
+    batch_size : int
+        The batch size.
+    batch_target_rate : int
+        The batch target rate as # of objects per second.
+    """
+
+    def callback(batch_results: dict) -> None:
+
+        # you could print batch errors here
+        time_took_to_create_batch = batch_size * (client.batch.creation_time/client.batch.recommended_num_objects)
+        time.sleep(
+            max(batch_size/batch_target_rate - time_took_to_create_batch + 1, 0)
+        )
+
+    client.batch.configure(
+        batch_size=batch_size,
+        timeout_retries=5,
+        callback=callback,
+    )
+
+
+
 def validate_data(data):
     for key, value in list(data.items()):  # Using list() to prevent 'dictionary changed size during iteration' error
         if isinstance(value, (int, float)):
@@ -35,11 +66,11 @@ client = weaviate.Client(
     url="https://cluster1-kedu3lyz.weaviate.network",
     auth_client_secret=weaviate.AuthApiKey(api_key="Replace here"),
     additional_headers={
-        "OPENAI_APIKEY": "Replace with OPENAI_APIKEY"
+        "X-Openai-Api-Key": "##### Replace with OPENAI_APIKEY ####"
     }
 )
 
-client.schema.delete_class("Event")
+#client.schema.delete_class("Event")
 
 class_obj = {
     "class": "Event",
